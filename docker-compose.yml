@@ -1,0 +1,49 @@
+services:
+  llm:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8080"
+    volumes:
+      - ./models:/models:ro
+    command:
+      - --model
+      - /models/Qwen3.5-2B-Q4_K_M.gguf
+      - --alias
+      - movie-llm
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --n-gpu-layers
+      - "99"
+      - --ctx-size
+      - "4096"
+      - --parallel
+      - "1"
+      - --jinja
+      - --reasoning
+      - "off"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:80"
+    volumes:
+      - ./models/embeddinggemma-300m:/model:ro
+    command:
+      - --model-id
+      - /model
+      - --dtype
+      - float32
+
+volumes:
+  embedding_cache:
