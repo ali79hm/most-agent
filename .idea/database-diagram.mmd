@@ -1,0 +1,55 @@
+
+erDiagram
+    MEDIA_ITEMS ||--o| MOVIE_DETAILS : "details"
+    MEDIA_ITEMS ||--o| SERIES_DETAILS : "details"
+    MEDIA_ITEMS ||--o| EPISODE_DETAILS : "details"
+    SERIES_DETAILS ||--o{ EPISODE_DETAILS : "contains"
+    MEDIA_ITEMS ||--o{ MEDIA_EMBEDDINGS : "has"
+
+    MEDIA_ITEMS {
+        uuid id PK
+        text imdb_id UK
+        text media_type
+        text name
+        text description
+        text poster
+        smallint release_year
+        date release_date
+        numeric imdb_rating
+        text_array genres
+        text_array countries
+        text imdb_url
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    MOVIE_DETAILS {
+        uuid media_id PK
+        integer runtime_minutes
+    }
+
+    SERIES_DETAILS {
+        uuid media_id PK
+        smallint end_year
+        date end_date
+        integer typical_episode_runtime_minutes
+        integer season_count
+        integer episode_count
+    }
+
+    EPISODE_DETAILS {
+        uuid media_id PK
+        uuid series_id FK
+        integer season_number
+        integer episode_number
+    }
+
+    MEDIA_EMBEDDINGS {
+        bigint id PK
+        uuid media_id FK
+        vector_768 embedding
+        text model_name
+        text embedding_type
+        text content_hash
+        timestamptz created_at
+    }
