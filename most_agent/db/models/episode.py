@@ -3,21 +3,27 @@ import uuid
 
 from sqlalchemy import (
     CheckConstraint,
-    ForeignKey,
+    ForeignKeyConstraint,
     Integer,
+    String,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from most_agent.db.base import Base
 from most_agent.db.models.media import MediaItem
-from most_agent.db.models.series import SeriesDetails
 
 
 class EpisodeDetails(Base):
     __tablename__ = "episode_details"
 
     __table_args__ = (
+        CheckConstraint(
+            "media_type = 'episode'",
+            name="ck_episode_details_media_type",
+        ),
+
         CheckConstraint(
             "season_number IS NULL OR season_number >= 0",
             name="ck_episode_details_season_number",
@@ -27,17 +33,36 @@ class EpisodeDetails(Base):
             "episode_number IS NULL OR episode_number > 0",
             name="ck_episode_details_episode_number",
         ),
+
+        ForeignKeyConstraint(
+            ["media_id", "media_type"],
+            ["media_items.id", "media_items.media_type"],
+            name="fk_episode_details_media_type",
+            ondelete="CASCADE",
+        ),
+
+        ForeignKeyConstraint(
+            ["series_id"],
+            ["series_details.media_id"],
+            name="fk_episode_details_series",
+            ondelete="CASCADE",
+        ),
     )
 
     media_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
-        ForeignKey("media_items.id", ondelete="CASCADE"),
         primary_key=True,
+    )
+
+    media_type: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="episode",
+        server_default=text("'episode'"),
     )
 
     series_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
-        ForeignKey("series_details.media_id", ondelete="CASCADE"),
         nullable=False,
     )
 
@@ -56,5 +81,6 @@ class EpisodeDetails(Base):
     )
 
     series: Mapped["SeriesDetails"] = relationship(
+        "SeriesDetails",
         back_populates="episodes",
     )

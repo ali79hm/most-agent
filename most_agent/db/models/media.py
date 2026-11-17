@@ -47,6 +47,11 @@ class MediaItem(Base):
             "(imdb_rating >= 0 AND imdb_rating <= 10)",
             name="ck_media_items_imdb_rating_range",
         ),
+        UniqueConstraint(
+            "id",
+            "media_type",
+            name="uq_media_items_id_media_type",
+        ),
     )
 
     # Identity
