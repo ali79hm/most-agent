@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # HTTP configuration
     http_timeout_seconds: float = Field(default=120.0, gt=0)
 
+    # LLM configuration
+    llm_provider: str = "openai_compatible"
+    llm_base_url: AnyHttpUrl = "http://localhost:8000/v1"
+    llm_model_name: str = "movie-llm"
+    llm_api_key: SecretStr | None = None
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
