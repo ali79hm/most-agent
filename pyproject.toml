@@ -1,7 +1,7 @@
 [project]
 name = "most-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "Local-first AI assistant for movies and TV series"
 readme = "README.md"
 authors = [
     { name = "ali hosseini", email = "ali79hm@yahoo.com" }
@@ -21,8 +21,6 @@ dependencies = [
     "uvicorn>=0.54.0",
 ]
 
-[project.scripts]
-most-agent = "most_agent:main"
 
 [build-system]
 requires = ["uv_build>=0.13.8,<0.14.0"]
