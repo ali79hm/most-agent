@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     # LLM generation defaults
     llm_temperature: float = Field(default=0.3, ge=0.0, le=2.0)
     llm_max_tokens: int = Field(default=256, gt=0)
+    
+    llm_context_window_tokens: int = Field(default=4096, gt=0)
+    llm_context_safety_margin_tokens: int = Field(default=128, ge=0)
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
