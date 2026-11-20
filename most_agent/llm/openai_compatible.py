@@ -1,5 +1,8 @@
 
-from collections.abc import Sequence
+from __future__ import annotations
+
+import json
+from collections.abc import AsyncIterator, Sequence
 
 import httpx
 
@@ -16,6 +19,8 @@ class OpenAICompatibleProvider:
         settings = settings or get_settings()
 
         self._model_name = settings.llm_model_name
+        self._temperature = settings.llm_temperature
+        self._max_tokens = settings.llm_max_tokens
 
         base_url = str(settings.llm_base_url).rstrip("/")
         self._chat_url = f"{base_url}/chat/completions"
@@ -36,7 +41,7 @@ class OpenAICompatibleProvider:
             headers=headers,
         )
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> OpenAICompatibleProvider:
         return self
 
     async def __aexit__(
@@ -44,25 +49,29 @@ class OpenAICompatibleProvider:
         exc_type,
         exc_value,
         traceback,
-    ):
+    ) -> None:
         await self.aclose()
 
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def complete(
+    def _build_payload(
         self,
         messages: Sequence[ChatMessage],
         *,
-        temperature: float = 0.3,
-        max_tokens: int = 256,
-    ) -> str:
+        model: str | None,
+        temperature: float | None,
+        max_tokens: int | None,
+        stream: bool,
+    ) -> dict:
 
         if not messages:
             raise ValueError("Messages cannot be empty")
 
-        payload = {
-            "model": self._model_name,
+        return {
+            "model": (
+                model if model is not None else self._model_name
+            ),
             "messages": [
                 {
                     "role": message.role,
@@ -70,10 +79,35 @@ class OpenAICompatibleProvider:
                 }
                 for message in messages
             ],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": False,
+            "temperature": (
+                temperature
+                if temperature is not None
+                else self._temperature
+            ),
+            "max_tokens": (
+                max_tokens
+                if max_tokens is not None
+                else self._max_tokens
+            ),
+            "stream": stream,
         }
+
+    async def complete(
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
+
+        payload = self._build_payload(
+            messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=False,
+        )
 
         response = await self._client.post(
             self._chat_url,
@@ -102,3 +136,67 @@ class OpenAICompatibleProvider:
             )
 
         return content
+
+    async def stream(
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[str]:
+
+        payload = self._build_payload(
+            messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=True,
+        )
+
+        async with self._client.stream(
+            "POST",
+            self._chat_url,
+            json=payload,
+        ) as response:
+
+            response.raise_for_status()
+
+            received_done = False
+
+            async for line in response.aiter_lines():
+
+                if not line.startswith("data:"):
+                    continue
+
+                data = line[5:].strip()
+
+                if not data:
+                    continue
+
+                if data == "[DONE]":
+                    received_done = True
+                    break
+
+                try:
+                    chunk = json.loads(data)
+                except json.JSONDecodeError as exc:
+                    raise RuntimeError(
+                        "LLM returned invalid streaming JSON"
+                    ) from exc
+
+                choices = chunk.get("choices")
+
+                if not choices:
+                    continue
+
+                delta = choices[0].get("delta") or {}
+                content = delta.get("content")
+
+                if isinstance(content, str) and content:
+                    yield content
+
+            if not received_done:
+                raise RuntimeError(
+                    "LLM stream ended before [DONE]"
+                )
