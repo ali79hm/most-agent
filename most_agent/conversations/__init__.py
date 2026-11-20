@@ -8,6 +8,7 @@ from most_agent.conversations.service import (
     add_message,
     create_conversation,
     get_conversation_history,
+    save_turn,
 )
 
 __all__ = [
@@ -16,5 +17,6 @@ __all__ = [
     "estimate_message_tokens",
     "estimate_messages_tokens",
     "get_conversation_history",
+    "save_turn",
     "trim_messages",
 ]
